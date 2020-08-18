@@ -123,9 +123,13 @@ for filename in filenames:
 # print("{}".format(data))
 workbook = xlsxwriter.Workbook('demo.xlsx')
 worksheet = workbook.add_worksheet()
+
+columnPos = 1
 worksheet.write(1, 0, 'Date')
 
-columnPos = 0
+relevantColumnCount = 0
+
+animals = data.keys()
 for index in range(len(header)):
   column = header[index]
   if column == '':
@@ -137,14 +141,33 @@ for index in range(len(header)):
       'Box' in column):
     continue
 
+  relevantColumnCount +=1
+
+for index in range(len(header)):
+  column = header[index]
+  if column == '':
+    continue
+
+  if ('Date' in column or 
+      'Time' in column or 
+      'Animal No.' in column or 
+      'Box' in column):
+    continue
+
+  animalPos = 0
+  for animal in animals:
+    worksheet.write(1, (animalPos * relevantColumnCount) + columnPos, column)
+    animalPos += 1
+
   columnPos += 1
-  worksheet.write(1, columnPos, column)
+
+print("Number of relevantColumnCount: {}".format(relevantColumnCount))
 
 animalPos = 0
-animals = data.keys()
 for animal in animals:
   animal = 'Animal No. ' + animal
-  worksheet.merge_range(0, columnPos * animalPos, 0, columnPos * ( 1 + animalPos ), animal)
+  print("Merging from: {} to {}".format(relevantColumnCount * animalPos, relevantColumnCount * (1 + animalPos) ))
+  worksheet.merge_range(0, 1 + relevantColumnCount * animalPos, 0, relevantColumnCount * (1 + animalPos), animal)
   animalPos += 1
 
 workbook.close()

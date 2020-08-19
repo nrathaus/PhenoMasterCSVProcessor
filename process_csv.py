@@ -11,10 +11,9 @@ import xlsxwriter
 
 header = None
 
+###
+# This will hold all the data from all the CSV files opened
 data = {}
-
-lastTime = None
-fakeSeconds = 30
 
 if len(sys.argv) < 1:
   print("Please provide one or more filename to be proccessed")
@@ -22,6 +21,8 @@ if len(sys.argv) < 1:
 
 filenames = sys.argv[1:]
 for filename in filenames:
+  lastTime = None
+
   print("Opening filename: {}".format(filename))
   header = None
 
@@ -62,7 +63,7 @@ for filename in filenames:
         if animal not in data:
             lastTime = None
             data[ animal ] = {}
-            data[ animal ][ 'Date' ] = []
+            data[ animal ][ 'Dates' ] = []
 
             for column in header:
               if column == '':
@@ -98,7 +99,7 @@ for filename in filenames:
             print("date: '{}' is not valid".format( date_string ))
             continue
 
-        data[ animal ][ 'Date' ].append( dateTime )
+        data[ animal ][ 'Dates' ].append( dateTime )
 
         for column in header:
           if column == '':
@@ -121,53 +122,103 @@ for filename in filenames:
         # print("{}".format( row[ header.index("Drink") ]))
 
 # print("{}".format(data))
-workbook = xlsxwriter.Workbook('demo.xlsx')
-worksheet = workbook.add_worksheet()
 
-columnPos = 1
-worksheet.write(1, 0, 'Date')
+###
+# This returns one workbook - combined - of all the data, in a pivot table
+def aggregatedWorkbook():
+  workbook = xlsxwriter.Workbook('combined.xlsx')
+  worksheet = workbook.add_worksheet()
 
-relevantColumnCount = 0
+  columnPos = 1
+  worksheet.write(1, 0, 'Date')
 
-animals = data.keys()
-for index in range(len(header)):
-  column = header[index]
-  if column == '':
-    continue
+  relevantColumnCount = 0
 
-  if ('Date' in column or 
-      'Time' in column or 
-      'Animal No.' in column or 
-      'Box' in column):
-    continue
+  for index in range(len(header)):
+    column = header[index]
+    if column == '':
+      continue
 
-  relevantColumnCount +=1
+    if ('Date' in column or 
+        'Time' in column or 
+        'Animal No.' in column or 
+        'Box' in column):
+      continue
 
-for index in range(len(header)):
-  column = header[index]
-  if column == '':
-    continue
+    relevantColumnCount +=1
 
-  if ('Date' in column or 
-      'Time' in column or 
-      'Animal No.' in column or 
-      'Box' in column):
-    continue
+  for index in range(len(header)):
+    column = header[index]
+    if column == '':
+      continue
+
+    if ('Date' in column or 
+        'Time' in column or 
+        'Animal No.' in column or 
+        'Box' in column):
+      continue
+
+    animalPos = 0
+    for animal in animals:
+      worksheet.write(1, (animalPos * relevantColumnCount) + columnPos, column)
+      animalPos += 1
+
+    columnPos += 1
+
+  print("Number of relevantColumnCount: {}".format(relevantColumnCount))
+
+  animals = data.keys()
+  animalPos = 0
+  for animal in animals:
+    animal = 'Animal No. ' + animal
+    print("Merging from: {} to {}".format(relevantColumnCount * animalPos, relevantColumnCount * (1 + animalPos) ))
+    worksheet.merge_range(0, 1 + relevantColumnCount * animalPos, 0, relevantColumnCount * (1 + animalPos), animal)
+    animalPos += 1
+
+  date_format = workbook.add_format({'num_format': 'd mm yyyy hh:mm'})
+
+  for firstAnimal in animals:
+    dates = data[ firstAnimal ]['Dates']
+    dateIndex = 0
+    for date in dates:
+      worksheet.write_datetime(2 + dateIndex, 0, date, date_format)
+      dateIndex += 1
+    
+    break
 
   animalPos = 0
   for animal in animals:
-    worksheet.write(1, (animalPos * relevantColumnCount) + columnPos, column)
+    print("Handling: {}".format(animal))
+    columnPos = 0 # First column is date
+    for index in range(len(header)):
+      column = header[index]
+      if column == '':
+        continue
+
+      if ('Date' in column or 
+          'Time' in column or 
+          'Animal No.' in column or 
+          'Box' in column):
+        continue
+
+      values = data[ animal ][ column ]
+      valueIndex = 0
+      for value in values:
+        # print("column: {} - value: {}".format(column, value))
+        worksheet.write(2 + valueIndex, 1 + columnPos + (relevantColumnCount * animalPos), value) # We skip the first column which is our Animal header and column header, we skip the first column which is Date
+
+        valueIndex += 1
+
+      columnPos += 1
+
     animalPos += 1
 
-  columnPos += 1
+  workbook.close()
 
-print("Number of relevantColumnCount: {}".format(relevantColumnCount))
 
-animalPos = 0
-for animal in animals:
-  animal = 'Animal No. ' + animal
-  print("Merging from: {} to {}".format(relevantColumnCount * animalPos, relevantColumnCount * (1 + animalPos) ))
-  worksheet.merge_range(0, 1 + relevantColumnCount * animalPos, 0, relevantColumnCount * (1 + animalPos), animal)
-  animalPos += 1
+###
+# This function creates a workbook per column name (skipping those that aren't data)
+def workbookPerColumn():
 
-workbook.close()
+
+workbookPerColumn()

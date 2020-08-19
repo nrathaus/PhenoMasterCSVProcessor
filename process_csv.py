@@ -11,18 +11,13 @@ import xlsxwriter
 
 header = None
 
-###
-# This will hold all the data from all the CSV files opened
-data = {}
-
 if len(sys.argv) < 1:
   print("Please provide one or more filename to be proccessed")
   sys.exit(0)
 
-
 ###
 # This returns one workbook - combined - of all the data, in a pivot table
-def aggregatedWorkbook():
+def aggregatedWorkbook(data):
   workbook = xlsxwriter.Workbook('combined.xlsx')
   worksheet = workbook.add_worksheet()
 
@@ -118,7 +113,7 @@ def aggregatedWorkbook():
 
 ###
 # This function creates a workbook per column name (skipping those that aren't data)
-def workbookPerColumn(dataSet):
+def workbookPerColumn(dataSet, data):
   relevantColumns = []
 
   for index in range(len(header)):
@@ -175,6 +170,10 @@ def workbookPerColumn(dataSet):
 # Read the provided CSV files and place the data inside data dict
 filenames = sys.argv[1:]
 for filename in filenames:
+  ###
+  # This will hold all the data from the CSV files opened
+  data = {}
+
   lastTime = None
 
   print("Opening filename: {}".format(filename))
@@ -287,6 +286,6 @@ for filename in filenames:
         #    break
         # print("{}".format( row[ header.index("Drink") ]))
 
-  workbookPerColumn(dataSet)
+  workbookPerColumn(dataSet, data)
 
 # print("{}".format(data))

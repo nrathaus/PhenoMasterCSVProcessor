@@ -171,7 +171,7 @@ def aggregatedWorkbook():
 
     animalPos = 0
     for animal in animals:
-      if 'Date' in animal:
+      if 'Dates' in animal:
         continue
 
       worksheet.write(1, (animalPos * relevantColumnCount) + columnPos, column)
@@ -197,7 +197,7 @@ def aggregatedWorkbook():
     
   animalPos = 0
   for animal in animals:
-    if 'Date' in animal:
+    if 'Dates' in animal:
         continue
 
     print("Handling: {}".format(animal))
@@ -252,7 +252,7 @@ def workbookPerColumn():
 
   for relevantColumn in relevantColumns:
     workbook = xlsxwriter.Workbook('column - {}.xlsx'.format(relevantColumn))
-    print("Handling: {}".format(relevantColumn))
+    print("Column: {}".format(relevantColumn))
     worksheet = workbook.add_worksheet()
     worksheet.write(0, 0, 'Date')
 
@@ -265,10 +265,10 @@ def workbookPerColumn():
 
     animalPos = 0
     for animal in animals:
-      if 'Date' in animal:
+      if 'Dates' in animal:
         continue
-      
-      print("Handling: {}".format(animal))
+
+      print("Animal: {}".format(animal))
       worksheet.write(0, 1 + animalPos, 'Animal No. {}'.format(animal))
 
       values = data[ animal ][ relevantColumn ]

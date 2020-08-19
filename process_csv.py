@@ -19,6 +19,8 @@ if len(sys.argv) < 1:
   print("Please provide one or more filename to be proccessed")
   sys.exit(0)
 
+###
+# Read the provided CSV files and place the data inside data dict
 filenames = sys.argv[1:]
 for filename in filenames:
   lastTime = None
@@ -28,6 +30,8 @@ for filename in filenames:
 
   with open(file=filename, newline='') as csvfile:
     linereader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    addedDates = None
+
     for row in linereader:
       if len(row) > 0:
 
@@ -51,7 +55,7 @@ for filename in filenames:
 
         animal = row[ header.index('Animal No.') ]
         if '' == animal:
-            continue
+          continue
 
         # print("Animal No.: {}".format(animal))
         # Sometimes lines are malformed, make sure that the Drink field is there
@@ -60,46 +64,51 @@ for filename in filenames:
           print("skipping: {} missing Weight field".format(date_string))
           continue
 
+        if 'Dates' not in data:
+          addedDates = False
+          data[ 'Dates' ] = []
+
         if animal not in data:
-            lastTime = None
-            data[ animal ] = {}
-            data[ animal ][ 'Dates' ] = []
+          lastTime = None
+          data[ animal ] = {}
+          
 
-            for column in header:
-              if column == '':
-                continue
+          for column in header:
+            if column == '':
+              continue
 
-              if ('Date' in column or 
-                  'Time' in column or 
-                  'Animal No.' in column or 
-                  'Box' in column):
-                continue
-              data[ animal ][ column ] = []
+            if ('Date' in column or 
+                'Time' in column or 
+                'Animal No.' in column or 
+                'Box' in column):
+              continue
+            data[ animal ][ column ] = []
 
         
         if '' == row[ header.index("Date") ]:
-            continue
+          continue
 
         dateTime = None
 
         date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 1)
         
         if lastTime == date_string:
-            date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 31)    
+          date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 31)    
 
         if lastTime and lastTime > date_string:
-            print("skipping: {}, smaller than: {}".format(date_string, lastTime))
-            continue
+          print("skipping: {}, smaller than: {}".format(date_string, lastTime))
+          continue
 
         lastTime = date_string
 
         try:
-            dateTime = datetime.strptime( date_string, '%d/%m/%Y %H:%M:%S' )
+          dateTime = datetime.strptime( date_string, '%d/%m/%Y %H:%M:%S' )
         except:
-            print("date: '{}' is not valid".format( date_string ))
-            continue
+          print("date: '{}' is not valid".format( date_string ))
+          continue
 
-        data[ animal ][ 'Dates' ].append( dateTime )
+        if addedDates is not None and False == addedDates:
+          data[ 'Dates' ].append( dateTime )
 
         for column in header:
           if column == '':
@@ -147,6 +156,8 @@ def aggregatedWorkbook():
 
     relevantColumnCount +=1
 
+  animals = data.keys()
+
   for index in range(len(header)):
     column = header[index]
     if column == '':
@@ -160,6 +171,9 @@ def aggregatedWorkbook():
 
     animalPos = 0
     for animal in animals:
+      if 'Date' in animal:
+        continue
+
       worksheet.write(1, (animalPos * relevantColumnCount) + columnPos, column)
       animalPos += 1
 
@@ -167,7 +181,6 @@ def aggregatedWorkbook():
 
   print("Number of relevantColumnCount: {}".format(relevantColumnCount))
 
-  animals = data.keys()
   animalPos = 0
   for animal in animals:
     animal = 'Animal No. ' + animal
@@ -177,17 +190,16 @@ def aggregatedWorkbook():
 
   date_format = workbook.add_format({'num_format': 'd mm yyyy hh:mm'})
 
-  for firstAnimal in animals:
-    dates = data[ firstAnimal ]['Dates']
-    dateIndex = 0
-    for date in dates:
-      worksheet.write_datetime(2 + dateIndex, 0, date, date_format)
-      dateIndex += 1
+  dateIndex = 0
+  for date in data['Dates']:
+    worksheet.write_datetime(2 + dateIndex, 0, date, date_format)
+    dateIndex += 1
     
-    break
-
   animalPos = 0
   for animal in animals:
+    if 'Date' in animal:
+        continue
+
     print("Handling: {}".format(animal))
     columnPos = 0 # First column is date
     for index in range(len(header)):
@@ -219,6 +231,58 @@ def aggregatedWorkbook():
 ###
 # This function creates a workbook per column name (skipping those that aren't data)
 def workbookPerColumn():
+  relevantColumns = []
 
+  for index in range(len(header)):
+    column = header[index]
+    if column == '':
+      continue
+
+    if ('Date' in column or 
+        'Time' in column or 
+        'Animal No.' in column or 
+        'Box' in column):
+      continue
+
+    relevantColumns.append( column )
+
+  print("Number of relevantColumns: {}".format(len(relevantColumns)))
+
+  animals = data.keys()
+
+  for relevantColumn in relevantColumns:
+    workbook = xlsxwriter.Workbook('column - {}.xlsx'.format(relevantColumn))
+    print("Handling: {}".format(relevantColumn))
+    worksheet = workbook.add_worksheet()
+    worksheet.write(0, 0, 'Date')
+
+    date_format = workbook.add_format({'num_format': 'd mm yyyy hh:mm'})
+
+    dateIndex = 0
+    for date in data['Dates']:
+      worksheet.write_datetime(1 + dateIndex, 0, date, date_format)
+      dateIndex += 1
+
+    animalPos = 0
+    for animal in animals:
+      if 'Date' in animal:
+        continue
+      
+      print("Handling: {}".format(animal))
+      worksheet.write(0, 1 + animalPos, 'Animal No. {}'.format(animal))
+
+      values = data[ animal ][ relevantColumn ]
+      valueIndex = 0
+      for value in values:
+        # print("column: {} - value: {}".format(column, value))
+        worksheet.write(1 + valueIndex, 1 + animalPos, value)
+        valueIndex += 1
+
+      animalPos += 1
+
+    workbook.close()
+
+###
+# main
 
 workbookPerColumn()

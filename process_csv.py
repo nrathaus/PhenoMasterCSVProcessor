@@ -19,118 +19,6 @@ if len(sys.argv) < 1:
   print("Please provide one or more filename to be proccessed")
   sys.exit(0)
 
-###
-# Read the provided CSV files and place the data inside data dict
-filenames = sys.argv[1:]
-for filename in filenames:
-  lastTime = None
-
-  print("Opening filename: {}".format(filename))
-  header = None
-
-  with open(file=filename, newline='') as csvfile:
-    linereader = csv.reader(csvfile, delimiter=',', quotechar='|')
-    addedDates = None
-
-    for row in linereader:
-      if len(row) > 0:
-
-        # Date,Time,Animal No.,Box,Ref.SFlow,Ref.O2,Ref.CO2,VO2(3),VCO2(3),RER,H(3),XT+YT,XA,YA,Drink,Feed,Weight,
-        if 'Date' in row[0]:
-          header = row
-          continue
-
-        if header is None:
-          continue
-
-        # print("header: {}".format(header))
-
-        # Make sure its an Animal 
-        if 'Animal No.' not in header:
-          continue
-
-        # Make sure its a proper section of data beacuse PhenoMaster has two sections
-        if 'Weight' not in header:
-          continue
-
-        animal = row[ header.index('Animal No.') ]
-        if '' == animal:
-          continue
-
-        # print("Animal No.: {}".format(animal))
-        # Sometimes lines are malformed, make sure that the Drink field is there
-        indexWeight = header.index('Weight')
-        if indexWeight > len(row):
-          print("skipping: {} missing Weight field".format(date_string))
-          continue
-
-        if 'Dates' not in data:
-          addedDates = False
-          data[ 'Dates' ] = []
-
-        if animal not in data:
-          lastTime = None
-          data[ animal ] = {}
-          
-
-          for column in header:
-            if column == '':
-              continue
-
-            if ('Date' in column or 
-                'Time' in column or 
-                'Animal No.' in column or 
-                'Box' in column):
-              continue
-            data[ animal ][ column ] = []
-
-        
-        if '' == row[ header.index("Date") ]:
-          continue
-
-        dateTime = None
-
-        date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 1)
-        
-        if lastTime == date_string:
-          date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 31)    
-
-        if lastTime and lastTime > date_string:
-          print("skipping: {}, smaller than: {}".format(date_string, lastTime))
-          continue
-
-        lastTime = date_string
-
-        try:
-          dateTime = datetime.strptime( date_string, '%d/%m/%Y %H:%M:%S' )
-        except:
-          print("date: '{}' is not valid".format( date_string ))
-          continue
-
-        if addedDates is not None and False == addedDates:
-          data[ 'Dates' ].append( dateTime )
-
-        for column in header:
-          if column == '':
-            continue
-
-          if ('Date' in column or 
-              'Time' in column or 
-              'Animal No.' in column or 
-              'Box' in column):
-            continue
-
-          dataValue = row[ header.index( column ) ]
-          if dataValue == '-':
-            data[ animal ][ column ].append( dataValue )
-          else:
-            data[ animal ][ column ].append( float( dataValue ) )
-
-        #if len(data[ animal ]['Drink']) > 10:
-        #    break
-        # print("{}".format( row[ header.index("Drink") ]))
-
-# print("{}".format(data))
 
 ###
 # This returns one workbook - combined - of all the data, in a pivot table
@@ -230,7 +118,7 @@ def aggregatedWorkbook():
 
 ###
 # This function creates a workbook per column name (skipping those that aren't data)
-def workbookPerColumn():
+def workbookPerColumn(dataSet):
   relevantColumns = []
 
   for index in range(len(header)):
@@ -251,7 +139,7 @@ def workbookPerColumn():
   animals = data.keys()
 
   for relevantColumn in relevantColumns:
-    workbook = xlsxwriter.Workbook('column - {}.xlsx'.format(relevantColumn))
+    workbook = xlsxwriter.Workbook('column - {} - {}.xlsx'.format(dataSet, relevantColumn))
     print("Column: {}".format(relevantColumn))
     worksheet = workbook.add_worksheet()
     worksheet.write(0, 0, 'Date')
@@ -282,7 +170,123 @@ def workbookPerColumn():
 
     workbook.close()
 
-###
-# main
 
-workbookPerColumn()
+###
+# Read the provided CSV files and place the data inside data dict
+filenames = sys.argv[1:]
+for filename in filenames:
+  lastTime = None
+
+  print("Opening filename: {}".format(filename))
+  header = None
+
+  dataSet = ''
+  with open(file=filename, newline='') as csvfile:
+    linereader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    addedDates = None
+
+    rowIndex = 0
+    for row in linereader:
+      rowIndex += 1
+
+      if len(row) > 0: # if it has values
+        if rowIndex == 1:
+          dataSet = row[0]
+        
+        # Date,Time,Animal No.,Box,Ref.SFlow,Ref.O2,Ref.CO2,VO2(3),VCO2(3),RER,H(3),XT+YT,XA,YA,Drink,Feed,Weight,
+        if 'Date' in row[0]:
+          header = row
+          continue
+
+        if header is None:
+          continue
+
+        # print("header: {}".format(header))
+
+        # Make sure its an Animal 
+        if 'Animal No.' not in header:
+          continue
+
+        # Make sure its a proper section of data beacuse PhenoMaster has two sections
+        if 'Weight' not in header:
+          continue
+
+        animal = row[ header.index('Animal No.') ]
+        if '' == animal:
+          continue
+
+        # print("Animal No.: {}".format(animal))
+        # Sometimes lines are malformed, make sure that the Drink field is there
+        indexWeight = header.index('Weight')
+        if indexWeight > len(row):
+          print("skipping: {} missing Weight field".format(date_string))
+          continue
+
+        if 'Dates' not in data:
+          addedDates = False
+          data[ 'Dates' ] = []
+
+        if animal not in data:
+          lastTime = None
+          data[ animal ] = {}
+          
+
+          for column in header:
+            if column == '':
+              continue
+
+            if ('Date' in column or 
+                'Time' in column or 
+                'Animal No.' in column or 
+                'Box' in column):
+              continue
+            data[ animal ][ column ] = []
+        
+        if '' == row[ header.index("Date") ]:
+          continue
+
+        dateTime = None
+
+        date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 1)
+        
+        if lastTime == date_string:
+          date_string = "{} {}:{:02d}".format(row[ header.index("Date") ] , row[ header.index("Time") ], 31)    
+
+        if lastTime and lastTime > date_string:
+          print("skipping: {}, smaller than: {}".format(date_string, lastTime))
+          continue
+
+        lastTime = date_string
+
+        try:
+          dateTime = datetime.strptime( date_string, '%d/%m/%Y %H:%M:%S' )
+        except:
+          print("date: '{}' is not valid".format( date_string ))
+          continue
+
+        if addedDates is not None and False == addedDates:
+          data[ 'Dates' ].append( dateTime )
+
+        for column in header:
+          if column == '':
+            continue
+
+          if ('Date' in column or 
+              'Time' in column or 
+              'Animal No.' in column or 
+              'Box' in column):
+            continue
+
+          dataValue = row[ header.index( column ) ]
+          if dataValue == '-':
+            data[ animal ][ column ].append( dataValue )
+          else:
+            data[ animal ][ column ].append( float( dataValue ) )
+
+        #if len(data[ animal ]['Drink']) > 10:
+        #    break
+        # print("{}".format( row[ header.index("Drink") ]))
+
+  workbookPerColumn(dataSet)
+
+# print("{}".format(data))
